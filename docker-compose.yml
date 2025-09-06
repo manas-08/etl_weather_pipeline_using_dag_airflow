@@ -1,0 +1,24 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:13
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 20p
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # Remove the networks section since we're using host.docker.internal
+    # networks:
+    #   - airflow
+
+volumes:
+  postgres_data:
+
+# Remove the external network since we're not using it
+# networks:
+#   airflow:
+#     external: true
