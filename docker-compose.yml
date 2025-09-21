@@ -1,24 +1,53 @@
-version: '3'
 services:
   postgres:
-    image: postgres:13
-    container_name: postgres_db
+    image: postgres:13-alpine
+    container_name: weather_postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 20p
-      POSTGRES_DB: postgres
+      POSTGRES_DB: weather_db
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8"
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # Remove the networks section since we're using host.docker.internal
-    # networks:
-    #   - airflow
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d weather_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - weather_network
+
+  grafana:
+    image: grafana/grafana:latest-ubuntu
+    container_name: weather_grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_LOG_FILTERS=rendering:debug
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    user: "472:472"
+    networks:
+      - weather_network
 
 volumes:
   postgres_data:
+    driver: local
+  grafana_data:
+    driver: local
 
-# Remove the external network since we're not using it
-# networks:
-#   airflow:
-#     external: true
+networks:
+  weather_network:
+    driver: bridge

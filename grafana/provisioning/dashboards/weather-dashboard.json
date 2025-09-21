@@ -1,0 +1,162 @@
+{
+  "uid": "weather-dashboard",
+  "title": "Multi-Location Weather Dashboard", 
+  "tags": ["weather","etl","comparison"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now+6h" },
+  "templating": {
+    "list": [
+      {
+        "name": "cities",
+        "label": "Cities",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+        "query": "SELECT DISTINCT city_name FROM weather_data ORDER BY 1",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": "",
+        "sort": 1
+      },
+      {
+        "name": "gauge_city", 
+        "label": "Gauge City",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+        "query": "SELECT DISTINCT city_name FROM weather_data ORDER BY 1",
+        "refresh": 1,
+        "multi": false,
+        "includeAll": false,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Temperature Time Series (Selected Cities)",
+      "type": "timeseries", 
+      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+      "fieldConfig": { "defaults": { "unit": "celsius" }, "overrides": [] },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+          "rawSql": "SELECT timestamp_utc AS time, temperature AS value, city_name AS metric\nFROM weather_data\nWHERE $__timeFilter(timestamp_utc)\n  AND (\n    CASE \n      WHEN '${cities:pipe}' = '' THEN true\n      ELSE city_name = ANY(string_to_array('${cities:pipe}', '|'))\n    END\n  )\nORDER BY timestamp_utc;"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Humidity Time Series",
+      "type": "timeseries",
+      "gridPos": { "h": 10, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+      "fieldConfig": { 
+        "defaults": { 
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }, 
+        "overrides": [] 
+      },
+      "options": { 
+        "legend": { "displayMode": "list", "placement": "bottom" }, 
+        "tooltip": { "mode": "multi" } 
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "format": "time_series",
+          "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+          "rawSql": "SELECT timestamp_utc AS time, humidity AS value, city_name AS metric\nFROM weather_data\nWHERE $__timeFilter(timestamp_utc)\n  AND humidity IS NOT NULL\n  AND (\n    CASE \n      WHEN '${cities:pipe}' = '' THEN true\n      ELSE city_name = ANY(string_to_array('${cities:pipe}', '|'))\n    END\n  )\nORDER BY timestamp_utc;"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Latest Conditions per City",
+      "type": "table",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A", 
+          "rawQuery": true,
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+          "rawSql": "SELECT DISTINCT ON (city_name)\n  city_name AS \"City\",\n  ROUND(temperature::numeric,1) AS \"Temp (°C)\",\n  humidity AS \"Humidity (%)\",\n  ROUND(windspeed::numeric,1) AS \"Wind (km/h)\", \n  weather_description AS \"Condition\",\n  timestamp_utc AS \"Last Update\"\nFROM weather_data\nWHERE (\n  CASE \n    WHEN '${cities:pipe}' = '' THEN true\n    ELSE city_name = ANY(string_to_array('${cities:pipe}', '|'))\n  END\n)\nORDER BY city_name, timestamp_utc DESC;"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Humidity Gauge ($gauge_city)",
+      "type": "gauge",
+      "gridPos": { "h": 9, "w": 6, "x": 12, "y": 10 },
+      "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute", 
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "green", "value": 30 },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 80 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+          "rawSql": "SELECT humidity FROM weather_data WHERE city_name='$gauge_city' ORDER BY timestamp_utc DESC LIMIT 1;"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Top Temperatures (Period)",
+      "type": "bargauge",
+      "gridPos": { "h": 9, "w": 6, "x": 18, "y": 10 },
+      "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+      "fieldConfig": { "defaults": { "unit": "celsius" }, "overrides": [] },
+      "options": { "orientation": "horizontal", "displayMode": "lcd" },
+      "targets": [
+        {
+          "refId": "A",
+          "rawQuery": true,
+          "format": "table",
+          "datasource": { "type": "postgres", "uid": "eeym4cgds20owd" },
+          "rawSql": "SELECT city_name, MAX(temperature) AS value\nFROM weather_data\nWHERE $__timeFilter(timestamp_utc)\n  AND (\n    CASE \n      WHEN '${cities:pipe}' = '' THEN true\n      ELSE city_name = ANY(string_to_array('${cities:pipe}', '|'))\n    END\n  )\nGROUP BY city_name\nORDER BY value DESC\nLIMIT 10;"
+        }
+      ]
+    }
+  ],
+  "annotations": { "list": [] },
+  "links": []
+}
