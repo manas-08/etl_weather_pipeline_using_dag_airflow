@@ -192,26 +192,6 @@ Monitor service logs, database performance, and dashboard query execution times 
 - Dashboard rendering performance and user experience
 - System resource utilization and scalability metrics
 
-## 🤝 Contributing
-
-We welcome contributions to enhance the weather ETL pipeline. Please fork the repository, create feature branches for development, and submit pull requests with comprehensive testing.
-
-### Development Workflow
-- Fork repository and create development branches
-- Test changes locally with the full stack
-- Ensure data quality checks pass
-- Update documentation for new features
-- Submit pull requests with detailed descriptions
-
-## 📄 License & Acknowledgments
-
-This project is open-source under the MIT License. We acknowledge the excellent free services and tools that make this project possible:
-
-- **Open-Meteo** for providing free weather API access
-- **Apache Airflow** community for robust workflow orchestration
-- **Grafana Labs** for powerful visualization capabilities
-- **PostgreSQL** community for reliable database technology
-
 ## 🏆 Project Achievements
 
 - ✅ **Production-Ready Pipeline**: Robust ETL with comprehensive error handling
